@@ -119,12 +119,6 @@ input:focus-visible,button:focus-visible,label.btn:focus-within{outline:3px soli
 .alert{border:2px solid var(--red);color:var(--red);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:700;max-width:80ch}
 .rkrow.dup .pos,.rkrow.dup .nm{color:var(--red)}
 .rkrow.dup input.rk-in{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
-.m.stale{border-color:var(--mustard);box-shadow:0 0 0 1.5px var(--mustard)}
-.lbl .warn2{color:var(--mustard);text-transform:none;letter-spacing:0;font-size:11px}
-.stale-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding-top:4px;border-top:1px dashed var(--line);font-size:11px;color:var(--muted)}
-.stale-row span{min-width:0;overflow-wrap:anywhere}
-.btn.mini{min-height:28px;padding:3px 10px;font-size:12px;border-color:var(--mustard);color:var(--mustard);background:transparent}
-.alert.warnbox{border-color:var(--mustard);color:var(--mustard)}
 .lockbox{max-width:560px;margin:60px auto;display:flex;flex-direction:column;gap:16px;align-items:flex-start}
 .lockbox h2{font-family:var(--display);font-weight:400;font-size:28px}
 .round{display:flex;flex-direction:column;gap:14px}
@@ -337,10 +331,8 @@ function bracket(sec,prefix,base,slots){
       var n=bl.slots.length,W=[],L=[],ms=[];
       for(var k=0;k<n/2;k++){
         var a=bl.slots[2*k],b=bl.slots[2*k+1];num++;
-        var id=r+'_'+bl.off+'_'+k,label=prefix+num,raw=sc(sec,id),ready=a.known&&b.known;
-        var stale=!!(ready&&raw.length>=4&&(raw[0]!=null||raw[1]!=null)&&(raw[2]!==a.name||raw[3]!==b.name));
-        var s=stale?[null,null]:raw,w=ready?winner(s):null;
-        ms.push({id:id,label:label,a:a,b:b,s:s,raw:raw,ready:ready,stale:stale});
+        var id=r+'_'+bl.off+'_'+k,label=prefix+num,s=sc(sec,id),ready=a.known&&b.known,w=ready?winner(s):null;
+        ms.push({id:id,label:label,a:a,b:b,s:s,ready:ready});
         if(w==null){W.push({name:'Vainq. '+label,known:false});L.push({name:'Perdant '+label,known:false});}
         else{W.push(w===0?a:b);L.push(w===0?b:a);}
       }
@@ -355,8 +347,8 @@ function bracket(sec,prefix,base,slots){
 function compute(){return {haut:bracket('haut','H',0,slotsFor(1,2)),bas:bracket('bas','B',16,slotsFor(3,4))};}
 
 function editing(){return canEdit&&editMode;}
-function cell(sec,k,i,val,enabled,name,na,nb){
-  if(editing())return '<input class="sc" id="i-'+sec+'-'+k+'-'+i+'" data-sec="'+sec+'" data-k="'+k+'" data-i="'+i+'" data-na="'+esc(na||'')+'" data-nb="'+esc(nb||'')+'" inputmode="numeric" maxlength="2" autocomplete="off" value="'+(val==null?'':val)+'"'+(enabled?'':' disabled')+' aria-label="Score '+esc(name)+'">';
+function cell(sec,k,i,val,enabled,name){
+  if(editing())return '<input class="sc" id="i-'+sec+'-'+k+'-'+i+'" data-sec="'+sec+'" data-k="'+k+'" data-i="'+i+'" inputmode="numeric" maxlength="2" autocomplete="off" value="'+(val==null?'':val)+'"'+(enabled?'':' disabled')+' aria-label="Score '+esc(name)+'">';
   return '<span class="sv'+(val==null?' e':'')+'">'+(val==null?'–':val)+'</span>';
 }
 function trow(t,state,c){return '<div class="tr'+(state?' '+state:'')+(t.known?'':' tbd')+'"><span class="tn" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+c+'</div>';}
@@ -366,13 +358,11 @@ function matchErr(s,ready){
   if(s[0]!=null&&s[0]===s[1])return 'Égalité impossible';
   return '';
 }
-function match(sec,id,label,a,b,s,ready,stale,raw){
+function match(sec,id,label,a,b,s,ready){
   var w=ready?winner(s):null,err=matchErr(s,ready);
   var sa=w==null?'':(w===0?'win':'lose'),sb=w==null?'':(w===1?'win':'lose');
-  var st=stale&&editing(),v0=st?raw[0]:s[0],v1=st?raw[1]:s[1];
-  return '<div class="m'+(err?' err':'')+(st?' stale':'')+'"><div class="lbl"><span>'+esc(label)+'</span>'+(err?'<span class="warn">'+err+'</span>':'')+(st?'<span class="warn2">Équipes changées</span>':'')+'</div>'+
-    trow(a,sa,cell(sec,id,0,v0,ready,a.name,a.name,b.name))+trow(b,sb,cell(sec,id,1,v1,ready,b.name,a.name,b.name))+
-    (st?'<div class="stale-row"><span>Avant : '+esc(raw[2]||'?')+' / '+esc(raw[3]||'?')+'</span><button class="btn mini" data-act="keep" data-sec="'+sec+'" data-k="'+id+'" data-na="'+esc(a.name)+'" data-nb="'+esc(b.name)+'">Garder ce score</button></div>':'')+'</div>';
+  return '<div class="m'+(err?' err':'')+'"><div class="lbl"><span>'+esc(label)+'</span>'+(err?'<span class="warn">'+err+'</span>':'')+'</div>'+
+    trow(a,sa,cell(sec,id,0,s[0],ready,a.name))+trow(b,sb,cell(sec,id,1,s[1],ready,b.name))+'</div>';
 }
 
 function dupNames(){
@@ -419,16 +409,15 @@ function viewPoules(){
   return h;
 }
 var COLN=['Finale','Demi-finales','Quarts de finale','8es de finale'];
-function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready,m.stale,m.raw)+'</div>';}
+function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready)+'</div>';}
 function viewBracket(sec,br){
   var base=sec==='haut'?0:16,map={};
   br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){map[rd.r+'_'+(bl.from-base-1)]=bl;});});
   var q=[{r:1,off:0}],trees=[];
   while(q.length){var t=q.shift();trees.push(t);for(var r=t.r;r<4;r++){var b0=map[r+'_'+t.off];q.push({r:r+1,off:t.off+(b0.to-b0.from+1)/2});}}
   trees.sort(function(a,b){return a.off-b.off;});
-  var nErr=0,nSt=0;br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){bl.matches.forEach(function(m){if(matchErr(m.s,m.ready))nErr++;if(m.stale&&!VIEWER)nSt++;});});});
+  var nErr=0;br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){bl.matches.forEach(function(m){if(matchErr(m.s,m.ready))nErr++;});});});
   var h=nErr?'<div class="alert" role="alert">'+(nErr===1?'1 match a un score à corriger.':nErr+' matchs ont un score à corriger.')+' Ils sont encadrés en rouge.</div>':'';
-  if(nSt&&canEdit)h+='<div class="alert warnbox" role="alert">'+(nSt===1?'1 match a changé d\u2019équipes':nSt+' matchs ont changé d\u2019équipes')+' suite à une correction. Leur score est mis de côté (encadré en jaune) : ressaisis-le, ou clique sur « Garder ce score ».</div>';
   h+='<p class="swipe">Fais glisser les tableaux vers la gauche pour voir la suite.</p>';
   h+='<p class="intro">Le tableau principal désigne les places '+(base+1)+' et '+(base+2)+'. Les équipes battues continuent dans les tableaux de classement plus bas, si bien que chaque équipe joue 4 matchs et finit à une place précise ('+(base+1)+' à '+(base+16)+').</p>';
   var html={};
@@ -539,7 +528,7 @@ app.addEventListener('change',function(e){
   if(t.classList.contains('sc')){
     var raw=t.value.trim(),v=raw===''?null:parseInt(raw,10);if(v!=null&&(isNaN(v)||v<0))v=null;if(v!=null&&v>99)v=99;
     var sec=t.dataset.sec,k=t.dataset.k,i=+t.dataset.i,cur=sc(sec,k).slice(0,2);cur[i]=v;
-    if(cur[0]==null&&cur[1]==null)delete draft[sec][k];else draft[sec][k]=[cur[0],cur[1],t.dataset.na||'',t.dataset.nb||''];queue();
+    if(cur[0]==null&&cur[1]==null)delete draft[sec][k];else draft[sec][k]=cur;queue();
   }else if(t.classList.contains('rk-in')){
     draft.teams[t.dataset.p][+t.dataset.i]=t.value.trim();queue();
   }else if(t.id==='imp'&&t.files&&t.files[0]){
@@ -558,7 +547,6 @@ app.addEventListener('click',function(e){
   else if(a==='export')exportFile();
   else if(a==='gh-connect'){var ti=document.getElementById('gh-token');connectSite(ti?ti.value:'');}
   else if(a==='gh-publish'){publishNow();}
-  else if(a==='keep'){var kr=sc(b.dataset.sec,b.dataset.k);draft[b.dataset.sec][b.dataset.k]=[kr[0],kr[1],b.dataset.na,b.dataset.nb];queue();toast('Score gardé pour les nouvelles équipes.');}
   else if(a==='fb-connect'){var fe=document.getElementById('fb-email'),fp=document.getElementById('fb-pw');fbConnect(fe?fe.value:'',fp?fp.value:'');}
   else if(a==='fb-publish'){fbPublish();}
   else if(a==='fb-off'){confirmClear='fb';render();}
