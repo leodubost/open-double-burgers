@@ -340,7 +340,7 @@ function cell(sec,k,i,val,enabled,name){
 }
 function trow(t,state,c){return '<div class="tr'+(state?' '+state:'')+(t.known?'':' tbd')+'"><span class="tn" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+c+'</div>';}
 function matchErr(s,ready){
-  if(!ready)return '';
+  if(!ready||VIEWER)return '';
   if((s[0]==null)!==(s[1]==null))return 'Score incomplet';
   if(s[0]!=null&&s[0]===s[1])return 'Égalité impossible';
   return '';
@@ -353,7 +353,7 @@ function match(sec,id,label,a,b,s,ready){
 }
 
 function dupNames(){
-  var seen={},d={};
+  var seen={},d={};if(VIEWER)return d;
   POULES.forEach(function(p){draft.teams[p].forEach(function(n){var k=n.trim().toLowerCase().replace(/\s+/g,' ');if(!k)return;if(seen[k])d[k]=n.trim();seen[k]=1;});});
   return d;
 }
@@ -451,7 +451,7 @@ function diffCount(){
 }
 function fmtTime(iso){try{var d=new Date(iso);return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function statusText(){
-  if(VIEWER){if(VS.fail)return 'Connexion perdue, nouvel essai…';return draft.updated?'Mis à jour à '+hm(draft.updated):'Les résultats arrivent bientôt';}
+  if(VIEWER){return draft.updated?'Mis à jour à '+hm(draft.updated):'Les résultats arrivent bientôt';}
   if(OFFLINE)return storageOk?(draft.updated?'Sauvegardé le '+fmtTime(draft.updated):'Sauvegarde automatique activée'):'Sauvegarde impossible ici : exporte régulièrement';
   return saved.updated?'Mis à jour le '+fmtTime(saved.updated):'Aucun résultat pour l’instant';
 }
