@@ -155,7 +155,8 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 <script type="application/json" id="state">{"v":2,"teams":{"A":["","","",""],"B":["","","",""],"C":["","","",""],"D":["","","",""],"E":["","","",""],"F":["","","",""],"G":["","","",""],"H":["","","",""]},"haut":{},"bas":{},"updated":null}</script>
 <script>
 (function(){
-var OFFLINE=false, VIEWER=true, VIEWER_HTML='';
+var OFFLINE=false, VIEWER=true, VIEWER_HTML='', VIEWER_VER='';
+var FB_DB='https://open-double-burgers-default-rtdb.europe-west1.firebasedatabase.app', FB_KEY='AIzaSyDsnaxuL5dd8H-5hecB-GBrkau9tBjBln8';
 var GH_REPO='leodubost/open-double-burgers', GH_DIR='suivi-ggv7cf9jr3', SITE_URL='https://leodubost.github.io/open-double-burgers/suivi-ggv7cf9jr3/';
 var HEAD_TOP='<title>Tableaux Open Double</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Archivo:wght@400;500;700;800&display=swap">';
 var SHELL='<div id="app"></div><div id="toast" role="status" aria-live="polite"></div>';
@@ -208,6 +209,12 @@ function ghErr(e){
 }
 function hm(iso){try{return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function ghText(){
+  if(FB.refresh){
+    if(FB.state==='sending')return 'Téléphones : envoi…';
+    if(FB.state==='err')return 'Téléphones : '+(FB.err.indexOf('internet')>=0?'hors ligne':'erreur');
+    if(FB.state==='ok')return 'Téléphones : à jour ('+hms(FB.last)+')';
+    return 'Téléphones : en attente';
+  }
   if(!GH.token)return 'Téléphones : non connecté';
   if(GH.state==='sending')return 'Téléphones : envoi…';
   if(GH.state==='err')return 'Téléphones : '+(GH.err.indexOf('internet')>=0?'hors ligne':'erreur');
@@ -215,11 +222,13 @@ function ghText(){
   return 'Téléphones : en attente';
 }
 function renderStatus(){
-  var c=document.getElementById('gh-chip');if(c){c.textContent=ghText();c.className='chip'+(GH.state==='ok'?' ok':'')+(GH.state==='err'?' bad':'');}
-  var l=document.getElementById('gh-line');if(l)l.textContent=GH.state==='err'?GH.err:(GH.state==='ok'?'Dernière publication à '+hm(GH.last)+'. Les téléphones affichent la mise à jour environ 1 minute plus tard.':(GH.state==='sending'?'Envoi en cours…':'Les résultats partent automatiquement quelques secondes après chaque saisie.'));
+  var st=FB.refresh?FB.state:GH.state;
+  var c=document.getElementById('gh-chip');if(c){c.textContent=ghText();c.className='chip'+(st==='ok'?' ok':'')+(st==='err'?' bad':'');}
+  var fl=document.getElementById('fb-line');if(fl)fl.textContent=FB.state==='err'?FB.err:(FB.state==='ok'?'Dernier envoi à '+hms(FB.last)+'. Les téléphones se mettent à jour en 1 à 2 secondes.':(FB.state==='sending'?'Envoi en cours…':'Les résultats partent automatiquement dès chaque saisie.'));
+  var l=document.getElementById('gh-line');if(l)l.textContent=GH.state==='err'?GH.err:(GH.state==='ok'?'Dernière publication à '+hm(GH.last)+'. Copie de secours, mise à jour environ 1 minute plus tard.':(GH.state==='sending'?'Envoi en cours…':'Les résultats partent automatiquement quelques secondes après chaque saisie.'));
   var vc=document.getElementById('v-chip');if(vc)vc.textContent=statusText();
 }
-function schedulePublish(){if(!OFFLINE||!GH.token)return;GH.dirty=true;clearTimeout(GH.timer);GH.timer=setTimeout(publishNow,4000);}
+function schedulePublish(){fbSchedule();if(!OFFLINE||!GH.token)return;GH.dirty=true;clearTimeout(GH.timer);GH.timer=setTimeout(publishNow,20000);}
 function publishNow(){
   if(!GH.token)return;clearTimeout(GH.timer);
   if(GH.busy){GH.dirty=true;return;}
@@ -235,13 +244,65 @@ function connectSite(tok){
   tok=(tok||'').trim();if(!tok){toast('Colle d\u2019abord la clé de publication.');return;}
   GH.token=tok;GH.busy=true;GH.state='sending';GH.err='';render();
   getSha(GH_DIR+'/index.html').then(function(s2){return putRetry(GH_DIR+'/index.html',VIEWER_HTML,'Met en ligne la page des tableaux',s2);}).then(function(){
-    try{localStorage.setItem('odb-gh-token',GH.token);}catch(e){}
+    try{localStorage.setItem('odb-gh-token',GH.token);localStorage.setItem('odb-viewer-ver',VIEWER_VER);}catch(e){}
     GH.busy=false;GH.sha=null;toast('Site connecté. Les résultats vont être publiés.');render();publishNow();
   },function(e){
     GH.busy=false;GH.token=null;GH.state='off';toast(e&&(e.status===401||e.status===403)?'Clé refusée. Vérifie que tu l\u2019as copiée en entier.':ghErr(e));render();
   });
 }
-if(OFFLINE)window.addEventListener('online',function(){if(GH.token&&GH.dirty)publishNow();});
+if(OFFLINE)window.addEventListener('online',function(){if(GH.token&&GH.dirty)publishNow();if(FB.refresh&&FB.dirty)fbPublish();});
+
+/* Envoi instantané (Firebase) */
+function hms(iso){try{return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}catch(e){return '';}}
+var FB={refresh:null,email:'',idToken:null,exp:0,state:'off',err:'',last:null,timer:null,busy:false,dirty:false};
+if(OFFLINE){try{FB.refresh=localStorage.getItem('odb-fb-refresh')||null;FB.email=localStorage.getItem('odb-fb-email')||'';}catch(e){}if(FB.refresh){FB.state='idle';FB.dirty=true;}}
+function jpost(url,body,form){
+  return fetch(url,{method:'POST',headers:{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'},body:form?body:JSON.stringify(body)}).then(function(r){
+    return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){var e=new Error('http '+r.status);e.status=r.status;e.code=j&&j.error&&j.error.message;throw e;}return j;});
+  });
+}
+function fbErr(e){
+  var c=(e&&e.code)||'';
+  if(/INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL/.test(c))return 'E-mail ou mot de passe incorrect.';
+  if(/TOKEN_EXPIRED|USER_NOT_FOUND|USER_DISABLED|INVALID_REFRESH_TOKEN/.test(c))return 'Connexion expirée. Déconnecte puis reconnecte-toi.';
+  if(e&&(e.status===401||e.status===403))return 'Publication refusée. Déconnecte puis reconnecte-toi.';
+  return 'Pas de connexion internet. Nouvel essai automatique.';
+}
+function fbToken(){
+  if(FB.idToken&&Date.now()<FB.exp-60000)return Promise.resolve(FB.idToken);
+  return jpost('https://securetoken.googleapis.com/v1/token?key='+FB_KEY,'grant_type=refresh_token&refresh_token='+encodeURIComponent(FB.refresh),true).then(function(j){
+    FB.idToken=j.id_token;FB.exp=Date.now()+(+j.expires_in||3600)*1000;if(j.refresh_token&&j.refresh_token!==FB.refresh){FB.refresh=j.refresh_token;try{localStorage.setItem('odb-fb-refresh',FB.refresh);}catch(e){}}
+    return FB.idToken;
+  });
+}
+function fbSchedule(){if(!OFFLINE||!FB.refresh)return;FB.dirty=true;clearTimeout(FB.timer);FB.timer=setTimeout(fbPublish,500);}
+function fbPublish(){
+  if(!FB.refresh)return;clearTimeout(FB.timer);
+  if(FB.busy){FB.dirty=true;return;}
+  FB.busy=true;FB.dirty=false;FB.state='sending';renderStatus();
+  var body=JSON.stringify({payload:JSON.stringify(draft),updated:draft.updated||new Date().toISOString()});
+  fbToken().then(function(t){
+    return fetch(FB_DB+'/tournoi.json?auth='+encodeURIComponent(t),{method:'PUT',body:body}).then(function(r){if(!r.ok){var e=new Error('http '+r.status);e.status=r.status;if(r.status===401){FB.idToken=null;}throw e;}});
+  }).then(function(){FB.last=new Date().toISOString();FB.state='ok';FB.err='';},function(e){
+    FB.dirty=true;FB.state='err';FB.err=fbErr(e);
+    if(/internet/.test(FB.err))FB.timer=setTimeout(fbPublish,5000);
+  }).then(function(){FB.busy=false;if(FB.dirty&&FB.state==='ok')fbSchedule();renderStatus();});
+}
+function fbConnect(email,pw){
+  email=(email||'').trim();if(!email||!pw){toast('Entre ton e-mail et ton mot de passe Firebase.');return;}
+  FB.state='sending';render();
+  jpost('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_KEY,{email:email,password:pw,returnSecureToken:true}).then(function(j){
+    FB.refresh=j.refreshToken;FB.idToken=j.idToken;FB.exp=Date.now()+(+j.expiresIn||3600)*1000;FB.email=email;
+    try{localStorage.setItem('odb-fb-refresh',FB.refresh);localStorage.setItem('odb-fb-email',email);}catch(e){}
+    toast('Envoi instantané activé.');render();fbPublish();
+  },function(e){FB.state='off';FB.refresh=null;toast(fbErr(e));render();});
+}
+function ghEnsureViewer(){
+  if(!OFFLINE||!GH.token||!VIEWER_VER)return;
+  var done=null;try{done=localStorage.getItem('odb-viewer-ver');}catch(e){}
+  if(done===VIEWER_VER)return;
+  getSha(GH_DIR+'/index.html').then(function(s2){return putRetry(GH_DIR+'/index.html',VIEWER_HTML,'Met à jour la page des tableaux',s2);}).then(function(){try{localStorage.setItem('odb-viewer-ver',VIEWER_VER);}catch(e){}},function(){});
+}
 
 function sc(sec,k){var v=draft[sec][k];return Array.isArray(v)?v:[null,null];}
 function winner(s){if(s[0]==null||s[1]==null||s[0]===s[1])return null;return s[0]>s[1]?0:1;}
@@ -318,6 +379,10 @@ function viewPoules(){
   if(canEdit){
     h+='<div class="tools">';
     if(OFFLINE){
+      h+='<section class="card"><header><h3>Envoi instantané</h3></header>';
+      if(!FB.refresh)h+='<p class="note">Connecte-toi une fois avec ton compte Firebase pour que les téléphones se mettent à jour en direct.</p><div class="f"><label for="fb-email" class="note">E-mail</label><input type="email" id="fb-email" class="tok-in" autocomplete="username"></div><div class="f"><label for="fb-pw" class="note">Mot de passe</label><input type="password" id="fb-pw" class="tok-in" autocomplete="current-password"></div><div class="btnrow"><button class="btn pri" data-act="fb-connect">Activer</button></div>';
+      else h+='<p class="note" id="fb-line"></p><p class="note">Connecté avec '+esc(FB.email)+'.</p><div class="btnrow"><button class="btn pri" data-act="fb-publish">Renvoyer maintenant</button>'+(confirmClear==='fb'?'<button class="btn dng" data-act="fb-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="fb-off">Déconnecter</button>')+'</div>';
+      h+='</section>';
       h+='<section class="card"><header><h3>Page des téléphones</h3></header>';
       if(!GH.token)h+='<p class="note">Colle la clé de publication pour envoyer les résultats sur la page du QR code.</p><div class="f"><label for="gh-token" class="note">Clé de publication</label><input type="password" id="gh-token" class="tok-in" autocomplete="off" placeholder="github_pat_…"></div><div class="btnrow"><button class="btn pri" data-act="gh-connect">Connecter</button></div>';
       else h+='<p class="note" id="gh-line"></p><p class="note">Adresse du QR code : <span style="user-select:all">'+esc(SITE_URL)+'</span></p><div class="btnrow"><button class="btn pri" data-act="gh-publish">Publier maintenant</button>'+(confirmClear==='gh'?'<button class="btn dng" data-act="gh-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="gh-off">Déconnecter</button>')+'</div>';
@@ -464,6 +529,10 @@ app.addEventListener('click',function(e){
   else if(a==='export')exportFile();
   else if(a==='gh-connect'){var ti=document.getElementById('gh-token');connectSite(ti?ti.value:'');}
   else if(a==='gh-publish'){publishNow();}
+  else if(a==='fb-connect'){var fe=document.getElementById('fb-email'),fp=document.getElementById('fb-pw');fbConnect(fe?fe.value:'',fp?fp.value:'');}
+  else if(a==='fb-publish'){fbPublish();}
+  else if(a==='fb-off'){confirmClear='fb';render();}
+  else if(a==='fb-off-yes'){confirmClear=false;clearTimeout(FB.timer);FB.refresh=null;FB.idToken=null;FB.state='off';try{localStorage.removeItem('odb-fb-refresh');}catch(e){}render();toast('Envoi instantané désactivé.');}
   else if(a==='gh-off'){confirmClear='gh';render();}
   else if(a==='gh-off-yes'){confirmClear=false;clearTimeout(GH.timer);GH.token=null;GH.state='off';try{localStorage.removeItem('odb-gh-token');}catch(e){}render();toast('Déconnecté. Les téléphones gardent les derniers résultats publiés.');}
   else if(a==='clear-scores'){confirmClear='scores';render();}
@@ -478,15 +547,30 @@ app.addEventListener('click',function(e){
 var VS={fail:false};
 render();
 if(OFFLINE&&GH.token&&GH.dirty)setTimeout(publishNow,1500);
+if(OFFLINE&&FB.refresh)setTimeout(fbPublish,800);
+if(OFFLINE)setTimeout(ghEnsureViewer,2500);
 if(VIEWER){
-  var pull=function(){
-    fetch('data.json?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
-      var o=norm(j);VS.fail=false;
-      if(o&&JSON.stringify(o)!==JSON.stringify(saved)){saved=o;draft=clone(o);render();}else renderStatus();
-    }).catch(function(){VS.fail=true;renderStatus();});
+  var newer=function(o){return o&&(!saved.updated||(o.updated||'')>=saved.updated);};
+  var apply=function(o){if(!newer(o))return;VS.fail=false;if(JSON.stringify(o)!==JSON.stringify(saved)){saved=o;draft=clone(o);render();}else renderStatus();};
+  var fromFb=function(v){if(!v||typeof v.payload!=='string')return null;try{return norm(JSON.parse(v.payload));}catch(e){return null;}};
+  var fbObj={},es=null,esOk=false;
+  var openStream=function(){
+    if(es||typeof EventSource==='undefined')return;
+    try{es=new EventSource(FB_DB+'/tournoi.json');}catch(e){es=null;return;}
+    var onData=function(ev){try{var m=JSON.parse(ev.data);esOk=true;
+      if(m.path==='/'){if(ev.type==='patch')Object.assign(fbObj,m.data||{});else fbObj=m.data||{};}else{fbObj[m.path.replace(/^\//,'')]=m.data;}
+      var o=fromFb(fbObj);if(o)apply(o);}catch(e){}};
+    es.addEventListener('put',onData);es.addEventListener('patch',onData);
+    es.addEventListener('cancel',function(){closeStream();});
+    es.onerror=function(){esOk=false;};
   };
-  pull();setInterval(pull,15000);
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
+  var closeStream=function(){if(es){try{es.close();}catch(e){}es=null;esOk=false;}};
+  var pullFb=function(){return fetch(FB_DB+'/tournoi.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(v){var o=fromFb(v);if(o)apply(o);else throw 0;});};
+  var pullGh=function(){return fetch('data.json?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){var o=norm(j);if(o)apply(o);});};
+  var safety=function(){if(document.hidden)return;if(esOk)return;pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});};
+  pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});
+  openStream();setInterval(safety,10000);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)closeStream();else{openStream();safety();}});
 }
 var sy=ss('odb-scroll');if(sy){ss('odb-scroll',null);setTimeout(function(){window.scrollTo(0,+sy||0);},50);}
 if(!OFFLINE&&!VIEWER&&window.claude&&typeof window.claude.use==='function'){
