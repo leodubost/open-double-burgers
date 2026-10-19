@@ -119,6 +119,14 @@ input:focus-visible,button:focus-visible,label.btn:focus-within{outline:3px soli
 .alert{border:2px solid var(--red);color:var(--red);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:700;max-width:80ch}
 .rkrow.dup .pos,.rkrow.dup .nm{color:var(--red)}
 .rkrow.dup input.rk-in{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+.m.stale{border-color:var(--mustard);box-shadow:0 0 0 1.5px var(--mustard)}
+.lbl .warn2{color:var(--mustard);text-transform:none;letter-spacing:0;font-size:11px}
+.stale-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding-top:4px;border-top:1px dashed var(--line);font-size:11px;color:var(--muted)}
+.stale-row span{min-width:0;overflow-wrap:anywhere}
+.btn.mini{min-height:28px;padding:3px 10px;font-size:12px;border-color:var(--mustard);color:var(--mustard);background:transparent}
+.alert.warnbox{border-color:var(--mustard);color:var(--mustard)}
+.lockbox{max-width:560px;margin:60px auto;display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+.lockbox h2{font-family:var(--display);font-weight:400;font-size:28px}
 .round{display:flex;flex-direction:column;gap:14px}
 .round h2{font-family:var(--display);font-weight:400;font-size:26px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
 .round h2 span{font-family:var(--body);font-size:14px;font-weight:700;color:var(--muted)}
@@ -189,7 +197,18 @@ if(!OFFLINE&&!VIEWER){
   var stash=null;try{stash=JSON.parse(ss('odb-stash')||'null');}catch(e){}
   if(stash){if(stash.stamp!==saved.updated&&stash.draft){var sd=norm(stash.draft);if(sd){draft=sd;restored=true;}}ss('odb-stash',null);}
 }
-function persist(){if(!OFFLINE)return;draft.updated=new Date().toISOString();saved=draft;try{localStorage.setItem(KEY,JSON.stringify(draft));storageOk=true;}catch(e){storageOk=false;}schedulePublish();}
+var TAB_ID=Math.random().toString(36).slice(2),primary=true,LOCK='odb-lock';
+function readLock(){try{return JSON.parse(localStorage.getItem(LOCK)||'null');}catch(e){return null;}}
+function writeLock(){try{localStorage.setItem(LOCK,JSON.stringify({id:TAB_ID,t:Date.now()}));}catch(e){}}
+function loadLocal(){try{var r=localStorage.getItem(KEY);var o=r?norm(JSON.parse(r)):null;if(o){saved=o;draft=clone(o);}}catch(e){}}
+function takeOver(){loadLocal();primary=true;writeLock();render();if(FB.refresh)fbPublish();}
+if(OFFLINE){
+  var lk0=readLock();if(lk0&&lk0.id!==TAB_ID&&Date.now()-lk0.t<6000)primary=false;else writeLock();
+  setInterval(function(){if(primary){var l=readLock();if(l&&l.id!==TAB_ID&&Date.now()-l.t<6000){primary=false;render();}else writeLock();}else{var l2=readLock();if(!l2||Date.now()-l2.t>6000)takeOver();}},2000);
+  window.addEventListener('storage',function(e){if(e.key===LOCK&&primary){var l=readLock();if(l&&l.id!==TAB_ID){primary=false;render();}}});
+  window.addEventListener('beforeunload',function(){if(primary){try{localStorage.removeItem(LOCK);}catch(e){}}});
+}
+function persist(){if(!OFFLINE||!primary)return;draft.updated=new Date().toISOString();saved=draft;try{localStorage.setItem(KEY,JSON.stringify(draft));storageOk=true;}catch(e){storageOk=false;}schedulePublish();}
 
 /* Publication vers la page des téléphones (appli de l'ordi uniquement) */
 var GH={token:null,sha:null,state:'off',last:null,err:'',timer:null,busy:false,dirty:false};
@@ -230,7 +249,7 @@ function renderStatus(){
 }
 function schedulePublish(){fbSchedule();if(!OFFLINE||!GH.token)return;GH.dirty=true;clearTimeout(GH.timer);GH.timer=setTimeout(publishNow,20000);}
 function publishNow(){
-  if(!GH.token)return;clearTimeout(GH.timer);
+  if(!GH.token||!primary)return;clearTimeout(GH.timer);
   if(GH.busy){GH.dirty=true;return;}
   GH.busy=true;GH.dirty=false;GH.state='sending';renderStatus();
   putRetry(GH_DIR+'/data.json',JSON.stringify(draft),'Résultats '+hm(new Date().toISOString()),GH.sha).then(function(s2){
@@ -275,9 +294,9 @@ function fbToken(){
     return FB.idToken;
   });
 }
-function fbSchedule(){if(!OFFLINE||!FB.refresh)return;FB.dirty=true;clearTimeout(FB.timer);FB.timer=setTimeout(fbPublish,500);}
+function fbSchedule(){if(!OFFLINE||!FB.refresh||!primary)return;FB.dirty=true;clearTimeout(FB.timer);FB.timer=setTimeout(fbPublish,500);}
 function fbPublish(){
-  if(!FB.refresh)return;clearTimeout(FB.timer);
+  if(!FB.refresh||!primary)return;clearTimeout(FB.timer);
   if(FB.busy){FB.dirty=true;return;}
   FB.busy=true;FB.dirty=false;FB.state='sending';renderStatus();
   var body=JSON.stringify({payload:JSON.stringify(draft),updated:draft.updated||new Date().toISOString()});
@@ -298,7 +317,7 @@ function fbConnect(email,pw){
   },function(e){FB.state='off';FB.refresh=null;toast(fbErr(e));render();});
 }
 function ghEnsureViewer(){
-  if(!OFFLINE||!GH.token||!VIEWER_VER)return;
+  if(!OFFLINE||!GH.token||!VIEWER_VER||!primary)return;
   var done=null;try{done=localStorage.getItem('odb-viewer-ver');}catch(e){}
   if(done===VIEWER_VER)return;
   getSha(GH_DIR+'/index.html').then(function(s2){return putRetry(GH_DIR+'/index.html',VIEWER_HTML,'Met à jour la page des tableaux',s2);}).then(function(){try{localStorage.setItem('odb-viewer-ver',VIEWER_VER);}catch(e){}},function(){});
@@ -318,8 +337,10 @@ function bracket(sec,prefix,base,slots){
       var n=bl.slots.length,W=[],L=[],ms=[];
       for(var k=0;k<n/2;k++){
         var a=bl.slots[2*k],b=bl.slots[2*k+1];num++;
-        var id=r+'_'+bl.off+'_'+k,label=prefix+num,s=sc(sec,id),ready=a.known&&b.known,w=ready?winner(s):null;
-        ms.push({id:id,label:label,a:a,b:b,s:s,ready:ready});
+        var id=r+'_'+bl.off+'_'+k,label=prefix+num,raw=sc(sec,id),ready=a.known&&b.known;
+        var stale=!!(ready&&raw.length>=4&&(raw[0]!=null||raw[1]!=null)&&(raw[2]!==a.name||raw[3]!==b.name));
+        var s=stale?[null,null]:raw,w=ready?winner(s):null;
+        ms.push({id:id,label:label,a:a,b:b,s:s,raw:raw,ready:ready,stale:stale});
         if(w==null){W.push({name:'Vainq. '+label,known:false});L.push({name:'Perdant '+label,known:false});}
         else{W.push(w===0?a:b);L.push(w===0?b:a);}
       }
@@ -334,8 +355,8 @@ function bracket(sec,prefix,base,slots){
 function compute(){return {haut:bracket('haut','H',0,slotsFor(1,2)),bas:bracket('bas','B',16,slotsFor(3,4))};}
 
 function editing(){return canEdit&&editMode;}
-function cell(sec,k,i,val,enabled,name){
-  if(editing())return '<input class="sc" id="i-'+sec+'-'+k+'-'+i+'" data-sec="'+sec+'" data-k="'+k+'" data-i="'+i+'" inputmode="numeric" maxlength="2" autocomplete="off" value="'+(val==null?'':val)+'"'+(enabled?'':' disabled')+' aria-label="Score '+esc(name)+'">';
+function cell(sec,k,i,val,enabled,name,na,nb){
+  if(editing())return '<input class="sc" id="i-'+sec+'-'+k+'-'+i+'" data-sec="'+sec+'" data-k="'+k+'" data-i="'+i+'" data-na="'+esc(na||'')+'" data-nb="'+esc(nb||'')+'" inputmode="numeric" maxlength="2" autocomplete="off" value="'+(val==null?'':val)+'"'+(enabled?'':' disabled')+' aria-label="Score '+esc(name)+'">';
   return '<span class="sv'+(val==null?' e':'')+'">'+(val==null?'–':val)+'</span>';
 }
 function trow(t,state,c){return '<div class="tr'+(state?' '+state:'')+(t.known?'':' tbd')+'"><span class="tn" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+c+'</div>';}
@@ -345,11 +366,13 @@ function matchErr(s,ready){
   if(s[0]!=null&&s[0]===s[1])return 'Égalité impossible';
   return '';
 }
-function match(sec,id,label,a,b,s,ready){
+function match(sec,id,label,a,b,s,ready,stale,raw){
   var w=ready?winner(s):null,err=matchErr(s,ready);
   var sa=w==null?'':(w===0?'win':'lose'),sb=w==null?'':(w===1?'win':'lose');
-  return '<div class="m'+(err?' err':'')+'"><div class="lbl"><span>'+esc(label)+'</span>'+(err?'<span class="warn">'+err+'</span>':'')+'</div>'+
-    trow(a,sa,cell(sec,id,0,s[0],ready,a.name))+trow(b,sb,cell(sec,id,1,s[1],ready,b.name))+'</div>';
+  var st=stale&&editing(),v0=st?raw[0]:s[0],v1=st?raw[1]:s[1];
+  return '<div class="m'+(err?' err':'')+(st?' stale':'')+'"><div class="lbl"><span>'+esc(label)+'</span>'+(err?'<span class="warn">'+err+'</span>':'')+(st?'<span class="warn2">Équipes changées</span>':'')+'</div>'+
+    trow(a,sa,cell(sec,id,0,v0,ready,a.name,a.name,b.name))+trow(b,sb,cell(sec,id,1,v1,ready,b.name,a.name,b.name))+
+    (st?'<div class="stale-row"><span>Avant : '+esc(raw[2]||'?')+' / '+esc(raw[3]||'?')+'</span><button class="btn mini" data-act="keep" data-sec="'+sec+'" data-k="'+id+'" data-na="'+esc(a.name)+'" data-nb="'+esc(b.name)+'">Garder ce score</button></div>':'')+'</div>';
 }
 
 function dupNames(){
@@ -396,15 +419,16 @@ function viewPoules(){
   return h;
 }
 var COLN=['Finale','Demi-finales','Quarts de finale','8es de finale'];
-function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready)+'</div>';}
+function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready,m.stale,m.raw)+'</div>';}
 function viewBracket(sec,br){
   var base=sec==='haut'?0:16,map={};
   br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){map[rd.r+'_'+(bl.from-base-1)]=bl;});});
   var q=[{r:1,off:0}],trees=[];
   while(q.length){var t=q.shift();trees.push(t);for(var r=t.r;r<4;r++){var b0=map[r+'_'+t.off];q.push({r:r+1,off:t.off+(b0.to-b0.from+1)/2});}}
   trees.sort(function(a,b){return a.off-b.off;});
-  var nErr=0;br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){bl.matches.forEach(function(m){if(matchErr(m.s,m.ready))nErr++;});});});
+  var nErr=0,nSt=0;br.rounds.forEach(function(rd){rd.blocks.forEach(function(bl){bl.matches.forEach(function(m){if(matchErr(m.s,m.ready))nErr++;if(m.stale&&!VIEWER)nSt++;});});});
   var h=nErr?'<div class="alert" role="alert">'+(nErr===1?'1 match a un score à corriger.':nErr+' matchs ont un score à corriger.')+' Ils sont encadrés en rouge.</div>':'';
+  if(nSt&&canEdit)h+='<div class="alert warnbox" role="alert">'+(nSt===1?'1 match a changé d\u2019équipes':nSt+' matchs ont changé d\u2019équipes')+' suite à une correction. Leur score est mis de côté (encadré en jaune) : ressaisis-le, ou clique sur « Garder ce score ».</div>';
   h+='<p class="swipe">Fais glisser les tableaux vers la gauche pour voir la suite.</p>';
   h+='<p class="intro">Le tableau principal désigne les places '+(base+1)+' et '+(base+2)+'. Les équipes battues continuent dans les tableaux de classement plus bas, si bien que chaque équipe joue 4 matchs et finit à une place précise ('+(base+1)+' à '+(base+16)+').</p>';
   var html={};
@@ -457,6 +481,10 @@ function statusText(){
 }
 
 function render(){
+  if(OFFLINE&&!primary){
+    document.getElementById('app').innerHTML='<div class="checker" aria-hidden="true"></div><div class="wrap"><div class="lockbox"><h2>L\u2019appli est déjà ouverte</h2><p class="intro">Elle est déjà ouverte dans un autre onglet ou une autre fenêtre. Pour éviter que deux versions s\u2019écrasent, utilise celle-là et ferme celle-ci.</p><button class="btn pri" data-act="takeover">Utiliser plutôt cet onglet</button></div></div>';
+    return;
+  }
   var c=compute(),act=document.activeElement,fid=act&&act.id&&act.tagName==='INPUT'?act.id:null;
   var h='<div class="checker" aria-hidden="true"></div><div class="wrap"><header class="top"><div><div class="eyebrow">AS Lyon 1 Badminton</div><h1>Open Double <em>Burgers</em></h1></div><div class="status">'+
     '<span class="chip"><span class="dot" aria-hidden="true"></span><span id="v-chip">'+statusText()+'</span></span>'+(OFFLINE?'<span class="chip" id="gh-chip"></span>':'')+
@@ -510,8 +538,8 @@ app.addEventListener('change',function(e){
   var t=e.target;
   if(t.classList.contains('sc')){
     var raw=t.value.trim(),v=raw===''?null:parseInt(raw,10);if(v!=null&&(isNaN(v)||v<0))v=null;if(v!=null&&v>99)v=99;
-    var sec=t.dataset.sec,k=t.dataset.k,i=+t.dataset.i,cur=sc(sec,k).slice();cur[i]=v;
-    if(cur[0]==null&&cur[1]==null)delete draft[sec][k];else draft[sec][k]=cur;queue();
+    var sec=t.dataset.sec,k=t.dataset.k,i=+t.dataset.i,cur=sc(sec,k).slice(0,2);cur[i]=v;
+    if(cur[0]==null&&cur[1]==null)delete draft[sec][k];else draft[sec][k]=[cur[0],cur[1],t.dataset.na||'',t.dataset.nb||''];queue();
   }else if(t.classList.contains('rk-in')){
     draft.teams[t.dataset.p][+t.dataset.i]=t.value.trim();queue();
   }else if(t.id==='imp'&&t.files&&t.files[0]){
@@ -522,6 +550,7 @@ app.addEventListener('change',function(e){
 });
 app.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;var a=b.dataset.act;
+  if(a==='takeover'){takeOver();return;}
   if(a==='tab'){tab=b.dataset.tab;ss('odb-tab',tab);try{history.replaceState(null,'','#'+tab);}catch(er){}render();window.scrollTo(0,0);}
   else if(a==='mode'){editMode=!editMode;render();}
   else if(a==='save')save();
@@ -529,6 +558,7 @@ app.addEventListener('click',function(e){
   else if(a==='export')exportFile();
   else if(a==='gh-connect'){var ti=document.getElementById('gh-token');connectSite(ti?ti.value:'');}
   else if(a==='gh-publish'){publishNow();}
+  else if(a==='keep'){var kr=sc(b.dataset.sec,b.dataset.k);draft[b.dataset.sec][b.dataset.k]=[kr[0],kr[1],b.dataset.na,b.dataset.nb];queue();toast('Score gardé pour les nouvelles équipes.');}
   else if(a==='fb-connect'){var fe=document.getElementById('fb-email'),fp=document.getElementById('fb-pw');fbConnect(fe?fe.value:'',fp?fp.value:'');}
   else if(a==='fb-publish'){fbPublish();}
   else if(a==='fb-off'){confirmClear='fb';render();}
