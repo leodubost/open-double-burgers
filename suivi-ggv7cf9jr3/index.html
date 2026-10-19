@@ -40,6 +40,8 @@ nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:v
 .tabrow{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .tabrow::-webkit-scrollbar{display:none}
 .tab{font:inherit;font-weight:700;font-size:14px;padding:12px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:4px solid transparent;margin-bottom:-2px;min-height:44px}
+.tab-gear{margin-left:auto;opacity:.45;padding:12px 10px}
+.tab-gear:hover,.tab-gear[aria-pressed="true"]{opacity:1}
 .tab[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--red)}
 main{padding-block:20px 120px;display:flex;flex-direction:column;gap:28px}
 .intro{color:var(--muted);max-width:65ch;margin:0}
@@ -169,6 +171,7 @@ var ROUND_NAMES=['8es de finale','Quarts de finale','Demi-finales','Finales et m
 var TABS=[['poules','Résultats des poules'],['haut','Tableau du haut'],['bas','Tableau du bas'],['classement','Classement']];
 var KEY='odb-tableaux-v2', storageOk=true;
 
+function pwHash(str){var x=2166136261>>>0;for(var i=0;i<str.length;i++){x^=str.codePointAt(i);x=Math.imul(x,16777619)>>>0;}return x.toString(36);}
 function clone(o){return JSON.parse(JSON.stringify(o));}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);if(v===null)sessionStorage.removeItem(k);else sessionStorage.setItem(k,v);}catch(e){return null;}}
@@ -184,7 +187,7 @@ if(OFFLINE){try{var raw=localStorage.getItem(KEY);var lo=raw?norm(JSON.parse(raw
 var draft=clone(saved);
 var canEdit=OFFLINE, editMode=true, art=null, saving=false, confirmClear=false;
 var tab=(location.hash||'').replace('#','')||ss('odb-tab')||(VIEWER?'haut':'poules');
-if(!TABS.some(function(t){return t[0]===tab;}))tab='poules';
+if(!TABS.some(function(t){return t[0]===tab;})&&!(OFFLINE&&tab==='reglages'))tab='poules';
 
 var restored=false;
 if(!OFFLINE&&!VIEWER){
@@ -391,22 +394,24 @@ function viewPoules(){
   h+='</div>';
   if(canEdit){
     h+='<div class="tools">';
-    if(OFFLINE){
-      h+='<section class="card"><header><h3>Envoi instantané</h3></header>';
-      if(!FB.refresh)h+='<p class="note">Connecte-toi une fois avec ton compte Firebase pour que les téléphones se mettent à jour en direct.</p><div class="f"><label for="fb-email" class="note">E-mail</label><input type="email" id="fb-email" class="tok-in" autocomplete="username"></div><div class="f"><label for="fb-pw" class="note">Mot de passe</label><input type="password" id="fb-pw" class="tok-in" autocomplete="current-password"></div><div class="btnrow"><button class="btn pri" data-act="fb-connect">Activer</button></div>';
-      else h+='<p class="note" id="fb-line"></p><p class="note">Connecté avec '+esc(FB.email)+'.</p><div class="btnrow"><button class="btn pri" data-act="fb-publish">Renvoyer maintenant</button>'+(confirmClear==='fb'?'<button class="btn dng" data-act="fb-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="fb-off">Déconnecter</button>')+'</div>';
-      h+='</section>';
-      h+='<section class="card"><header><h3>Page des téléphones</h3></header>';
-      if(!GH.token)h+='<p class="note">Colle la clé de publication pour envoyer les résultats sur la page du QR code.</p><div class="f"><label for="gh-token" class="note">Clé de publication</label><input type="password" id="gh-token" class="tok-in" autocomplete="off" placeholder="github_pat_…"></div><div class="btnrow"><button class="btn pri" data-act="gh-connect">Connecter</button></div>';
-      else h+='<p class="note" id="gh-line"></p><p class="note">Adresse du QR code : <span style="user-select:all">'+esc(SITE_URL)+'</span></p><div class="btnrow"><button class="btn pri" data-act="gh-publish">Publier maintenant</button>'+(confirmClear==='gh'?'<button class="btn dng" data-act="gh-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="gh-off">Déconnecter</button>')+'</div>';
-      h+='</section>';
-    }
     h+='<section class="card"><header><h3>Remise à zéro</h3></header>';
-    if(confirmClear)h+='<p class="note">'+(confirmClear==='all'?'Les classements des poules et tous les scores des tableaux seront effacés.':'Tous les scores des tableaux seront effacés. Les classements des poules restent.')+'</p><div class="btnrow"><button class="btn dng" data-act="clear-yes">Oui, effacer</button><button class="btn" data-act="clear-no">Annuler</button></div>';
+    if(confirmClear==='all'||confirmClear==='scores')h+='<p class="note">'+(confirmClear==='all'?'Les classements des poules et tous les scores des tableaux seront effacés.':'Tous les scores des tableaux seront effacés. Les classements des poules restent.')+'</p><div class="f"><label for="rz-pw" class="note">Mot de passe de remise à zéro</label><input type="password" id="rz-pw" class="tok-in" autocomplete="off"></div><div class="btnrow"><button class="btn dng" data-act="clear-yes">Oui, effacer</button><button class="btn" data-act="clear-no">Annuler</button></div>';
     else h+='<div class="btnrow"><button class="btn dng" data-act="clear-scores">Effacer les scores des tableaux</button><button class="btn dng" data-act="clear-all">Tout effacer</button></div>';
     h+='</section></div>';
   }
   return h;
+}
+function viewReglages(){
+  var h='<p class="intro">Connexions qui envoient les résultats sur les téléphones. À régler une seule fois : il n\u2019y a rien à toucher pendant le tournoi.</p><div class="tools">';
+      h+='<section class="card"><header><h3>Envoi instantané</h3></header>';
+  if(!FB.refresh)h+='<p class="note">Connecte-toi une fois avec ton compte Firebase pour que les téléphones se mettent à jour en direct.</p><div class="f"><label for="fb-email" class="note">E-mail</label><input type="email" id="fb-email" class="tok-in" autocomplete="username"></div><div class="f"><label for="fb-pw" class="note">Mot de passe</label><input type="password" id="fb-pw" class="tok-in" autocomplete="current-password"></div><div class="btnrow"><button class="btn pri" data-act="fb-connect">Activer</button></div>';
+  else h+='<p class="note" id="fb-line"></p><p class="note">Connecté avec '+esc(FB.email)+'.</p><div class="btnrow"><button class="btn pri" data-act="fb-publish">Renvoyer maintenant</button>'+(confirmClear==='fb'?'<button class="btn dng" data-act="fb-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="fb-off">Déconnecter</button>')+'</div>';
+  h+='</section>';
+  h+='<section class="card"><header><h3>Page des téléphones</h3></header>';
+  if(!GH.token)h+='<p class="note">Colle la clé de publication pour envoyer les résultats sur la page du QR code.</p><div class="f"><label for="gh-token" class="note">Clé de publication</label><input type="password" id="gh-token" class="tok-in" autocomplete="off" placeholder="github_pat_…"></div><div class="btnrow"><button class="btn pri" data-act="gh-connect">Connecter</button></div>';
+  else h+='<p class="note" id="gh-line"></p><p class="note">Adresse du QR code : <span style="user-select:all">'+esc(SITE_URL)+'</span></p><div class="btnrow"><button class="btn pri" data-act="gh-publish">Publier maintenant</button>'+(confirmClear==='gh'?'<button class="btn dng" data-act="gh-off-yes">Oui, déconnecter</button><button class="btn" data-act="clear-no">Annuler</button>':'<button class="btn" data-act="gh-off">Déconnecter</button>')+'</div>';
+  h+='</section>';
+  return h+'</div>';
 }
 var COLN=['Finale','Demi-finales','Quarts de finale','8es de finale'];
 function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready)+'</div>';}
@@ -480,8 +485,9 @@ function render(){
     (canEdit?'<button class="modebtn" data-act="mode" aria-pressed="'+editMode+'">'+(editMode?'Saisie : activée':'Saisie : désactivée')+'</button>':'')+'</div></header></div>';
   h+='<nav class="tabs" aria-label="Sections"><div class="wrap"><div class="tabrow">';
   TABS.forEach(function(t){h+='<button class="tab" data-act="tab" data-tab="'+t[0]+'" aria-pressed="'+(tab===t[0])+'">'+t[1]+'</button>';});
+  if(OFFLINE)h+='<button class="tab tab-gear" data-act="tab" data-tab="reglages" aria-pressed="'+(tab==='reglages')+'" aria-label="Réglages" title="Réglages"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>';
   h+='</div></div></nav><main class="wrap">';
-  if(tab==='poules')h+=viewPoules();else if(tab==='haut')h+=viewBracket('haut',c.haut);else if(tab==='bas')h+=viewBracket('bas',c.bas);else h+=viewClassement(c);
+  if(tab==='poules')h+=viewPoules();else if(tab==='haut')h+=viewBracket('haut',c.haut);else if(tab==='bas')h+=viewBracket('bas',c.bas);else if(tab==='reglages'&&OFFLINE)h+=viewReglages();else h+=viewClassement(c);
   h+='</main>';
   var n=(!OFFLINE&&canEdit)?diffCount():0;
   if(n>0)h+='<div class="savebar"><div class="in"><span><strong>'+n+' modification'+(n>1?'s':'')+'</strong> non enregistrée'+(n>1?'s':'')+'</span><span class="btnrow"><button class="btn" data-act="cancel"'+(saving?' disabled':'')+'>Annuler</button><button class="btn pri" data-act="save"'+(saving?' disabled':'')+'>'+(saving?'Enregistrement…':'Enregistrer')+'</button></span></div></div>';
@@ -537,6 +543,7 @@ app.addEventListener('change',function(e){
     fr.readAsText(t.files[0]);
   }
 });
+app.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.id==='rz-pw'){var bt=document.querySelector('[data-act="clear-yes"]');if(bt)bt.click();}});
 app.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;var a=b.dataset.act;
   if(a==='takeover'){takeOver();return;}
@@ -557,6 +564,8 @@ app.addEventListener('click',function(e){
   else if(a==='clear-all'){confirmClear='all';render();}
   else if(a==='clear-no'){confirmClear=false;render();}
   else if(a==='clear-yes'){
+    var pwi=document.getElementById('rz-pw');
+    if(!pwi||pwHash(pwi.value)!=='1ix9hac'){toast('Mot de passe incorrect. Rien n\u2019a été effacé.');if(pwi){pwi.value='';pwi.focus();}return;}
     if(confirmClear==='all')POULES.forEach(function(p){draft.teams[p]=['','','',''];});
     draft.haut={};draft.bas={};confirmClear=false;persist();render();toast(OFFLINE?'Effacé.':'Effacé. Enregistre pour confirmer.');
   }
