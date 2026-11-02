@@ -150,13 +150,38 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;max-width:calc(100vw - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.on{opacity:1}
 .note{font-size:13px;color:var(--muted);margin:0}
+/* Équipes par niveau */
+.lv-c1{--lv:#F2566A}.lv-c2{--lv:#F2BA3D}.lv-n{--lv:#7FB2FF}.lv-d{--lv:#7BD389}
+.lvdot{width:9px;height:9px;border-radius:3px;background:var(--lv);flex:none}
+.eq-top{display:flex;flex-direction:column;gap:14px}
+.lvstats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.lvstats{grid-template-columns:repeat(2,minmax(0,1fr))}.lvstat.all{grid-column:1/-1}}
+.lvstat{font:inherit;color:var(--ink);text-align:left;cursor:pointer;background:var(--surface);border:1.5px solid var(--line);border-top:5px solid var(--lv,var(--ink));border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-height:44px}
+.lvstat .n{font-family:var(--display);font-size:30px;line-height:1;color:var(--lv,var(--ink))}
+.lvstat .t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lvstat[aria-pressed="true"]{background:var(--lv,var(--ink));border-color:var(--lv,var(--ink))}
+.lvstat[aria-pressed="true"] .n,.lvstat[aria-pressed="true"] .t{color:var(--bg)}
+.eq-q{max-width:420px;height:44px!important;font-weight:600}
+.lvsec{display:flex;flex-direction:column;gap:12px}
+.lvh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-bottom:2px solid var(--lv);padding-bottom:6px}
+.lvh h2{font-family:var(--display);font-weight:400;font-size:26px;color:var(--lv)}
+.lvh .cnt{font-weight:800;font-size:14px}
+.lvh .sub{font-size:13px;color:var(--muted)}
+.eqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:10px}
+.eq{position:relative;background:var(--surface);border:1.5px solid var(--line);border-left:6px solid var(--lv);border-radius:12px;padding:10px 12px 10px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.eq-ft{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.eqn{font-family:var(--display);font-size:19px;line-height:1.15;overflow-wrap:break-word;min-width:0}
+.eqp{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:1px}
+.eqc{flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid var(--muted);color:var(--muted)}
+.eq-empty{color:var(--muted);font-style:italic;margin:0}
+textarea.eq-paste{width:100%;min-height:120px;box-sizing:border-box;padding:10px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 
 </style>
 </head>
 <body>
 <div id="app"></div><div id="toast" role="status" aria-live="polite"></div>
-<script type="application/json" id="state">{"v":2,"teams":{"A":["","","",""],"B":["","","",""],"C":["","","",""],"D":["","","",""],"E":["","","",""],"F":["","","",""],"G":["","","",""],"H":["","","",""]},"haut":{},"bas":{},"updated":null}</script>
+<script type="application/json" id="state">{"v":2,"teams":{"A":["","","",""],"B":["","","",""],"C":["","","",""],"D":["","","",""],"E":["","","",""],"F":["","","",""],"G":["","","",""],"H":["","","",""]},"haut":{},"bas":{},"updated":null,"equipes":[{"n": "Best of 🍔", "niv": "c2", "cat": "Mixte", "j1": "Imbert Adèle", "j2": "Guthmann Arthur"}, {"n": "Orangeade", "niv": "c2", "cat": "Mixte", "j1": "Jade MERCIER", "j2": "Ange BASTIDE"}, {"n": "Miaouuuu", "niv": "c2", "cat": "Masculin", "j1": "Bertrand Elno", "j2": "Chavagnat Camille"}, {"n": "Hell yeah", "niv": "n", "cat": "Mixte", "j1": "Wiart Desmurs Gabrielle", "j2": "Furbacco Enzo"}, {"n": "Bk tue mcdo", "niv": "c2", "cat": "Masculin", "j1": "DIABATE-DUBOST Léo", "j2": "GUILLON Pierre"}, {"n": "La CB12", "niv": "c1", "cat": "Mixte", "j1": "MASMOUDI MYRIAM", "j2": "BEN LACHHAB Bilal"}, {"n": "Tinini et Grodoudou", "niv": "n", "cat": "Masculin", "j1": "Laurent Quentin", "j2": "Laurent Maxence"}, {"n": "Double smash", "niv": "c1", "cat": "Mixte", "j1": "Nassim Lalaoui", "j2": "Lison Paolini"}, {"n": "Les Farfadets Malicieux", "niv": "c1", "cat": "Mixte", "j1": "FOUASSIER Lalie", "j2": "MARTEL Even"}, {"n": "Jawann", "niv": "c2", "cat": "Mixte", "j1": "Avaby Jalane", "j2": "Erwann Vella Blasco"}, {"n": "Ayane et kotone", "niv": "c2", "cat": "Masculin", "j1": "Chavas Terry", "j2": "Charbonnier Théo"}, {"n": "Smash burger", "niv": "c2", "cat": "Masculin", "j1": "BOUCHET Pierre", "j2": "ONGARO Kylian"}, {"n": "Arracheurs2baddies", "niv": "c1", "cat": "Masculin", "j1": "Mairot-Vergara Guy", "j2": "VALLET César"}, {"n": "Gromalot", "niv": "d", "cat": "Féminin", "j1": "VITALI Julie", "j2": "BOURDENENT Philaé"}, {"n": "In di corner", "niv": "d", "cat": "Mixte", "j1": "Belkhiria Adam", "j2": "Isis PIERRE"}, {"n": "Les tours jumelles", "niv": "c2", "cat": "Mixte", "j1": "Lacroix Margot", "j2": "Thien Nguyen"}, {"n": "La veuve et l’opprimé", "niv": "d", "cat": "Masculin", "j1": "JERCZYNSKI Hugo", "j2": "GRONDIN"}, {"n": "Nem&baguette", "niv": "c1", "cat": "Masculin", "j1": "LAMAISON Hugo", "j2": "ANAYAHAN Melvin"}, {"n": "Kim canna", "niv": "n", "cat": "Masculin", "j1": "TOUIHRI Ismail", "j2": "Djaffar Elhad"}, {"n": "Les stagiaires", "niv": "c2", "cat": "Masculin", "j1": "PROST Tristan", "j2": "MARCASTEL Quentin"}]}</script>
 <script>
 (function(){
 var OFFLINE=false, VIEWER=true, VIEWER_HTML='', VIEWER_VER='';
@@ -168,8 +193,11 @@ var RESET_FALLBACK=':root{color-scheme:light;padding-top:env(safe-area-inset-top
 var POULES=['A','B','C','D','E','F','G','H'];
 var SEEDS=[['A','B'],['C','D'],['E','F'],['G','H'],['B','A'],['D','C'],['F','E'],['H','G']];
 var ROUND_NAMES=['8es de finale','Quarts de finale','Demi-finales','Finales et matchs de classement'];
-var TABS=[['poules','Résultats des poules'],['haut','Tableau du haut'],['bas','Tableau du bas'],['classement','Classement']];
+var TABS=[['equipes','Équipes'],['poules','Résultats des poules'],['haut','Tableau du haut'],['bas','Tableau du bas'],['classement','Classement']];
 var KEY='odb-tableaux-v2', storageOk=true;
+var LEVELS=[['c1','Compétiteur +','Classés N, R, D, P ou très forts'],['c2','Compétiteur \u2212','Classés P ou compétitions universitaires'],['n','Normal','Savent tenir une raquette'],['d','Débutant','Premiers pas au badminton']];
+var LVNAME={};LEVELS.forEach(function(l){LVNAME[l[0]]=l[1];});
+var DEFAULT_EQ=[];
 
 function pwHash(str){var x=2166136261>>>0;for(var i=0;i<str.length;i++){x^=str.codePointAt(i);x=Math.imul(x,16777619)>>>0;}return x.toString(36);}
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -179,14 +207,26 @@ function norm(o){
   if(!o||typeof o!=='object'||!o.teams)return null;
   var t={};POULES.forEach(function(p){var a=Array.isArray(o.teams[p])?o.teams[p]:[];t[p]=[0,1,2,3].map(function(i){return typeof a[i]==='string'?a[i]:'';});});
   var obj=function(x){return x&&typeof x==='object'&&!Array.isArray(x)?x:{};};
-  return {v:2,teams:t,haut:obj(o.haut),bas:obj(o.bas),updated:o.updated||null};
+  var eq=Array.isArray(o.equipes)?o.equipes.map(cleanEq).filter(Boolean):DEFAULT_EQ.map(cleanEq).filter(Boolean);
+  return {v:2,teams:t,haut:obj(o.haut),bas:obj(o.bas),updated:o.updated||null,equipes:eq};
 }
+function cleanEq(e){
+  if(!e||typeof e!=='object'||typeof e.n!=='string'||!e.n.trim())return null;
+  var s=function(x){return typeof x==='string'?x.trim():'';};
+  return {n:e.n.trim(),niv:LVNAME[e.niv]?e.niv:'n',cat:s(e.cat),j1:s(e.j1),j2:s(e.j2)};
+}
+function fold(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();}
+function levelOf(name){var k=fold(name);if(!k)return null;for(var i=0;i<draft.equipes.length;i++){if(fold(draft.equipes[i].n)===k)return draft.equipes[i].niv;}return null;}
+function lvDot(name){var l=levelOf(name);return l?'<span class="lvdot lv-'+l+'" title="'+esc(LVNAME[l])+'" aria-label="'+esc(LVNAME[l])+'"></span>':'';}
 
-var saved=norm(JSON.parse(document.getElementById('state').textContent));
+var RAW0=JSON.parse(document.getElementById('state').textContent);DEFAULT_EQ=Array.isArray(RAW0.equipes)?RAW0.equipes:[];
+var saved=norm(RAW0);
 if(OFFLINE){try{var raw=localStorage.getItem(KEY);var lo=raw?norm(JSON.parse(raw)):null;if(lo)saved=lo;}catch(e){storageOk=false;}}
 var draft=clone(saved);
 var canEdit=OFFLINE, editMode=true, art=null, saving=false, confirmClear=false;
-var tab=(location.hash||'').replace('#','')||ss('odb-tab')||(VIEWER?'haut':'poules');
+var anyPool=POULES.some(function(p){return saved.teams[p].some(function(n){return n.trim();});});
+var tab=(location.hash||'').replace('#','')||ss('odb-tab')||(VIEWER?(anyPool?'haut':'equipes'):'poules');
+var lvF=null,eqQ='';
 if(!TABS.some(function(t){return t[0]===tab;})&&!(OFFLINE&&tab==='reglages'))tab='poules';
 
 var restored=false;
@@ -354,7 +394,7 @@ function cell(sec,k,i,val,enabled,name){
   if(editing())return '<input class="sc" id="i-'+sec+'-'+k+'-'+i+'" data-sec="'+sec+'" data-k="'+k+'" data-i="'+i+'" inputmode="numeric" maxlength="2" autocomplete="off" value="'+(val==null?'':val)+'"'+(enabled?'':' disabled')+' aria-label="Score '+esc(name)+'">';
   return '<span class="sv'+(val==null?' e':'')+'">'+(val==null?'–':val)+'</span>';
 }
-function trow(t,state,c){return '<div class="tr'+(state?' '+state:'')+(t.known?'':' tbd')+'"><span class="tn" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+c+'</div>';}
+function trow(t,state,c){return '<div class="tr'+(state?' '+state:'')+(t.known?'':' tbd')+'">'+(t.known?lvDot(t.name):'')+'<span class="tn" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+c+'</div>';}
 function matchErr(s,ready){
   if(!ready||VIEWER)return '';
   if((s[0]==null)!==(s[1]==null))return 'Score incomplet';
@@ -385,13 +425,15 @@ function viewPoules(){
     names.forEach(function(n,i){
       var dup=isDup(n,d);
       h+='<div class="rkrow'+(dup?' dup':'')+'"><span class="pos">'+ord(i+1)+'</span>';
-      if(editing())h+='<input class="rk-in" id="r-'+p+i+'" data-p="'+p+'" data-i="'+i+'" value="'+esc(n)+'" placeholder="Nom de l’équipe" autocomplete="off" aria-label="'+ord(i+1)+' de la poule '+p+'">';
+      h+=lvDot(n);
+      if(editing())h+='<input class="rk-in" id="r-'+p+i+'" data-p="'+p+'" data-i="'+i+'" value="'+esc(n)+'" placeholder="Nom de l’équipe" autocomplete="off" list="dl-eq" aria-label="'+ord(i+1)+' de la poule '+p+'">';
       else h+='<span class="nm'+(n.trim()?'':' u')+'">'+(n.trim()?esc(n):'—')+'</span>';
       h+='<span class="tag '+(i<2?'h">HAUT':'b">BAS')+'</span></div>';
     });
     h+='</section>';
   });
   h+='</div>';
+  if(editing())h+='<datalist id="dl-eq">'+draft.equipes.map(function(e){return '<option value="'+esc(e.n)+'"></option>';}).join('')+'</datalist>';
   if(canEdit){
     h+='<div class="tools">';
     h+='<section class="card"><header><h3>Remise à zéro</h3></header>';
@@ -400,6 +442,55 @@ function viewPoules(){
     h+='</section></div>';
   }
   return h;
+}
+function viewEquipes(){
+  var eq=draft.equipes,by={};LEVELS.forEach(function(l){by[l[0]]=[];});
+  eq.forEach(function(e){by[e.niv].push(e);});
+  LEVELS.forEach(function(l){by[l[0]].sort(function(a,b){return fold(a.n)<fold(b.n)?-1:1;});});
+  var h='<div class="eq-top"><p class="intro">'+(eq.length?'Les '+eq.length+' équipes inscrites, rangées par niveau. Touche un niveau pour n\u2019afficher que lui.':'La liste des équipes n\u2019est pas encore disponible.')+'</p>';
+  h+='<div class="lvstats"><button class="lvstat all" data-act="lvf" data-lv="" aria-pressed="'+(!lvF)+'"><span class="n">'+eq.length+'</span><span class="t">Équipes</span></button>';
+  LEVELS.forEach(function(l){h+='<button class="lvstat lv-'+l[0]+'" data-act="lvf" data-lv="'+l[0]+'" aria-pressed="'+(lvF===l[0])+'"><span class="n">'+by[l[0]].length+'</span><span class="t">'+l[1]+'</span></button>';});
+  h+='</div><input type="search" id="eq-q" class="tok-in eq-q" placeholder="Chercher une équipe ou un joueur" aria-label="Chercher une équipe ou un joueur" autocomplete="off" value="'+esc(eqQ)+'"></div>';
+  LEVELS.forEach(function(l){
+    var list=by[l[0]];
+    h+='<section class="lvsec lv-'+l[0]+'"'+(lvF&&lvF!==l[0]?' hidden':'')+' data-lvsec><div class="lvh"><h2>'+l[1]+'</h2><span class="cnt">'+list.length+' équipe'+(list.length>1?'s':'')+'</span><span class="sub">'+l[2]+'</span></div>';
+    if(!list.length)h+='<p class="eq-empty">Aucune équipe pour l\u2019instant.</p>';
+    else{h+='<div class="eqgrid">';list.forEach(function(e){
+      h+='<article class="eq" data-s="'+esc(fold(e.n+' '+e.j1+' '+e.j2))+'"><div class="eqn">'+esc(e.n)+'</div><div class="eq-ft"><div class="eqp">'+(e.j1?'<span>'+esc(e.j1)+'</span>':'')+(e.j2?'<span>'+esc(e.j2)+'</span>':'')+'</div>'+(e.cat?'<span class="eqc">'+esc(e.cat)+'</span>':'')+'</div></article>';});
+      h+='</div>';}
+    h+='</section>';
+  });
+  h+='<p class="note" id="eq-none" hidden>Aucune équipe ne correspond à ta recherche.</p>';
+  if(editing()&&OFFLINE){
+    h+='<div class="tools"><section class="card"><header><h3>Mettre à jour la liste</h3></header><p class="note">Dans le Google Sheet, onglet Niveaux, sélectionne les colonnes A à E de la ligne 1 jusqu\u2019à la dernière équipe, copie, puis colle ici. La liste remplace l\u2019actuelle et part aussi sur les téléphones.</p><textarea id="eq-paste" class="eq-paste" spellcheck="false" aria-label="Coller l\u2019onglet Niveaux"></textarea><div class="btnrow"><button class="btn pri" data-act="eq-import">Remplacer la liste</button></div></section></div>';
+  }
+  return h;
+}
+function applyEqFilter(){
+  var q=fold(eqQ),secs=document.querySelectorAll('[data-lvsec]'),tot=0;
+  for(var i=0;i<secs.length;i++){
+    var cards=secs[i].querySelectorAll('.eq'),vis=0;
+    for(var j=0;j<cards.length;j++){var ok=!q||cards[j].getAttribute('data-s').indexOf(q)>=0;cards[j].hidden=!ok;if(ok)vis++;}
+    var lvOk=!lvF||secs[i].classList.contains('lv-'+lvF);
+    secs[i].hidden=!lvOk||(q&&!vis);if(!secs[i].hidden)tot+=vis;
+  }
+  var none=document.getElementById('eq-none');if(none)none.hidden=!(q&&!tot);
+}
+function lvFromLabel(a){a=fold(a);if(/^competiteur ?\+/.test(a))return 'c1';if(/^competiteur ?[-\u2212\u2013]/.test(a))return 'c2';if(/^normal/.test(a))return 'n';if(/^debutant/.test(a))return 'd';return null;}
+function tidyName(x){return String(x||'').replace(/\s+/g,' ').trim().split(' ').map(function(w){return w&&w===w.toLowerCase()&&w!==w.toUpperCase()?w.charAt(0).toUpperCase()+w.slice(1):w;}).join(' ');}
+function parseNiveaux(txt){
+  var cur=null,out=[],seen={};
+  String(txt||'').split(/\r?\n/).forEach(function(line){
+    var c=line.split('\t').map(function(x){return x.trim();}),a=c[0]||'';
+    if(!a)return;
+    var lv=lvFromLabel(a);
+    if(lv&&!c[1]&&!c[2]){cur=lv;return;}
+    if(/^nom d.?.quipe$/i.test(fold(a)))return;
+    if(/^niveau non reconnu/.test(fold(a))){cur='n';return;}
+    if(!cur||seen[fold(a)])return;seen[fold(a)]=1;
+    out.push({n:a,niv:cur,cat:c[1]||'',j1:tidyName(c[2]),j2:tidyName(c[3])});
+  });
+  return out;
 }
 function viewReglages(){
   var h='<p class="intro">Connexions qui envoient les résultats sur les téléphones. À régler une seule fois : il n\u2019y a rien à toucher pendant le tournoi.</p><div class="tools">';
@@ -487,12 +578,13 @@ function render(){
   TABS.forEach(function(t){h+='<button class="tab" data-act="tab" data-tab="'+t[0]+'" aria-pressed="'+(tab===t[0])+'">'+t[1]+'</button>';});
   if(OFFLINE)h+='<button class="tab tab-gear" data-act="tab" data-tab="reglages" aria-pressed="'+(tab==='reglages')+'" aria-label="Réglages" title="Réglages"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>';
   h+='</div></div></nav><main class="wrap">';
-  if(tab==='poules')h+=viewPoules();else if(tab==='haut')h+=viewBracket('haut',c.haut);else if(tab==='bas')h+=viewBracket('bas',c.bas);else if(tab==='reglages'&&OFFLINE)h+=viewReglages();else h+=viewClassement(c);
+  if(tab==='equipes')h+=viewEquipes();else if(tab==='poules')h+=viewPoules();else if(tab==='haut')h+=viewBracket('haut',c.haut);else if(tab==='bas')h+=viewBracket('bas',c.bas);else if(tab==='reglages'&&OFFLINE)h+=viewReglages();else h+=viewClassement(c);
   h+='</main>';
   var n=(!OFFLINE&&canEdit)?diffCount():0;
   if(n>0)h+='<div class="savebar"><div class="in"><span><strong>'+n+' modification'+(n>1?'s':'')+'</strong> non enregistrée'+(n>1?'s':'')+'</span><span class="btnrow"><button class="btn" data-act="cancel"'+(saving?' disabled':'')+'>Annuler</button><button class="btn pri" data-act="save"'+(saving?' disabled':'')+'>'+(saving?'Enregistrement…':'Enregistrer')+'</button></span></div></div>';
   document.getElementById('app').innerHTML=h;
-  if(fid){var el=document.getElementById(fid);if(el){el.focus();try{el.select();}catch(e){}}}
+  if(tab==='equipes')applyEqFilter();
+  if(fid){var el=document.getElementById(fid);if(el){el.focus();if(fid!=='eq-q'){try{el.select();}catch(e){}}}}
   renderStatus();
 }
 var tq=null;
@@ -543,12 +635,19 @@ app.addEventListener('change',function(e){
     fr.readAsText(t.files[0]);
   }
 });
+app.addEventListener('input',function(e){if(e.target&&e.target.id==='eq-q'){eqQ=e.target.value;applyEqFilter();}});
 app.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.id==='rz-pw'){var bt=document.querySelector('[data-act="clear-yes"]');if(bt)bt.click();}});
 app.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;var a=b.dataset.act;
   if(a==='takeover'){takeOver();return;}
   if(a==='tab'){tab=b.dataset.tab;ss('odb-tab',tab);try{history.replaceState(null,'','#'+tab);}catch(er){}render();window.scrollTo(0,0);}
   else if(a==='mode'){editMode=!editMode;render();}
+  else if(a==='lvf'){var v=b.dataset.lv||null;lvF=(v&&lvF!==v)?v:null;render();}
+  else if(a==='eq-import'){
+    var ta=document.getElementById('eq-paste'),list=parseNiveaux(ta?ta.value:'');
+    if(!list.length){toast('Rien à importer. Copie bien l\u2019onglet Niveaux depuis la ligne 1.');return;}
+    draft.equipes=list;persist();render();toast(list.length+' équipes importées.');
+  }
   else if(a==='save')save();
   else if(a==='cancel'){draft=clone(saved);render();toast('Modifications annulées');}
   else if(a==='export')exportFile();
