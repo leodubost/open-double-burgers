@@ -198,6 +198,7 @@ var KEY='odb-tableaux-v2', storageOk=true;
 var LEVELS=[['c1','Compétiteur +','Classés N, R, D, P ou très forts'],['c2','Compétiteur \u2212','Classés P ou compétitions universitaires'],['n','Normal','Savent tenir une raquette'],['d','Débutant','Premiers pas au badminton']];
 var LVNAME={};LEVELS.forEach(function(l){LVNAME[l[0]]=l[1];});
 var DEFAULT_EQ=[];
+var SHEET_CSV='__SHEET_CSV__', CSV_EQ=null;
 
 function pwHash(str){var x=2166136261>>>0;for(var i=0;i<str.length;i++){x^=str.codePointAt(i);x=Math.imul(x,16777619)>>>0;}return x.toString(36);}
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -450,7 +451,7 @@ function viewEquipes(){
   var h='<div class="eq-top"><p class="intro">'+(eq.length?'Les '+eq.length+' équipes inscrites, rangées par niveau. Touche un niveau pour n\u2019afficher que lui.':'La liste des équipes n\u2019est pas encore disponible.')+'</p>';
   h+='<div class="lvstats"><button class="lvstat all" data-act="lvf" data-lv="" aria-pressed="'+(!lvF)+'"><span class="n">'+eq.length+'</span><span class="t">Équipes</span></button>';
   LEVELS.forEach(function(l){h+='<button class="lvstat lv-'+l[0]+'" data-act="lvf" data-lv="'+l[0]+'" aria-pressed="'+(lvF===l[0])+'"><span class="n">'+by[l[0]].length+'</span><span class="t">'+l[1]+'</span></button>';});
-  h+='</div><input type="search" id="eq-q" class="tok-in eq-q" placeholder="Chercher une équipe ou un joueur" aria-label="Chercher une équipe ou un joueur" autocomplete="off" value="'+esc(eqQ)+'"></div>';
+  h+='</div></div>';
   LEVELS.forEach(function(l){
     var list=by[l[0]];
     h+='<section class="lvsec lv-'+l[0]+'"'+(lvF&&lvF!==l[0]?' hidden':'')+' data-lvsec><div class="lvh"><h2>'+l[1]+'</h2><span class="cnt">'+list.length+' équipe'+(list.length>1?'s':'')+'</span><span class="sub">'+l[2]+'</span></div>';
@@ -461,9 +462,6 @@ function viewEquipes(){
     h+='</section>';
   });
   h+='<p class="note" id="eq-none" hidden>Aucune équipe ne correspond à ta recherche.</p>';
-  if(editing()&&OFFLINE){
-    h+='<div class="tools"><section class="card"><header><h3>Mettre à jour la liste</h3></header><p class="note">Dans le Google Sheet, onglet Niveaux, sélectionne les colonnes A à E de la ligne 1 jusqu\u2019à la dernière équipe, copie, puis colle ici. La liste remplace l\u2019actuelle et part aussi sur les téléphones.</p><textarea id="eq-paste" class="eq-paste" spellcheck="false" aria-label="Coller l\u2019onglet Niveaux"></textarea><div class="btnrow"><button class="btn pri" data-act="eq-import">Remplacer la liste</button></div></section></div>';
-  }
   return h;
 }
 function applyEqFilter(){
@@ -478,10 +476,19 @@ function applyEqFilter(){
 }
 function lvFromLabel(a){a=fold(a);if(/^competiteur ?\+/.test(a))return 'c1';if(/^competiteur ?[-\u2212\u2013]/.test(a))return 'c2';if(/^normal/.test(a))return 'n';if(/^debutant/.test(a))return 'd';return null;}
 function tidyName(x){return String(x||'').replace(/\s+/g,' ').trim().split(' ').map(function(w){return w&&w===w.toLowerCase()&&w!==w.toUpperCase()?w.charAt(0).toUpperCase()+w.slice(1):w;}).join(' ');}
-function parseNiveaux(txt){
+function parseNiveaux(txt){return parseRows(String(txt||'').split(/\r?\n/).map(function(l){return l.split('\t');}));}
+function parseCSV(txt){
+  var rows=[],row=[],f='',q=false,s=String(txt||'');
+  for(var i=0;i<s.length;i++){var ch=s[i];
+    if(q){if(ch==='"'){if(s[i+1]==='"'){f+='"';i++;}else q=false;}else f+=ch;}
+    else if(ch==='"')q=true;else if(ch===','){row.push(f);f='';}else if(ch==='\n'){row.push(f);rows.push(row);row=[];f='';}else if(ch!=='\r')f+=ch;}
+  if(f||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function parseRows(rows){
   var cur=null,out=[],seen={};
-  String(txt||'').split(/\r?\n/).forEach(function(line){
-    var c=line.split('\t').map(function(x){return x.trim();}),a=c[0]||'';
+  rows.forEach(function(r){
+    var c=r.map(function(x){return String(x||'').trim();}),a=c[0]||'';
     if(!a)return;
     var lv=lvFromLabel(a);
     if(lv&&!c[1]&&!c[2]){cur=lv;return;}
@@ -491,6 +498,22 @@ function parseNiveaux(txt){
     out.push({n:a,niv:cur,cat:c[1]||'',j1:tidyName(c[2]),j2:tidyName(c[3])});
   });
   return out;
+}
+/* Liste des équipes lue directement dans le Google Sheet (onglet Niveaux publié en CSV) */
+var sheetPending=false;
+function pullSheet(){
+  if(!SHEET_CSV||SHEET_CSV.indexOf('http')!==0)return;
+  if(OFFLINE&&!primary)return;
+  fetch(SHEET_CSV,{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(txt){
+    var list=parseRows(parseCSV(txt)).map(cleanEq).filter(Boolean);
+    if(!list.length)return;
+    CSV_EQ=list;
+    if(JSON.stringify(list)===JSON.stringify(draft.equipes))return;
+    draft.equipes=clone(list);
+    if(OFFLINE)persist();else{saved.equipes=clone(list);}
+    var ae=document.activeElement;
+    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')&&ae.id!=='eq-q')sheetPending=true;else render();
+  }).catch(function(){});
 }
 function viewReglages(){
   var h='<p class="intro">Connexions qui envoient les résultats sur les téléphones. À régler une seule fois : il n\u2019y a rien à toucher pendant le tournoi.</p><div class="tools">';
@@ -635,6 +658,7 @@ app.addEventListener('change',function(e){
     fr.readAsText(t.files[0]);
   }
 });
+app.addEventListener('focusout',function(){if(sheetPending){sheetPending=false;setTimeout(render,0);}});
 app.addEventListener('input',function(e){if(e.target&&e.target.id==='eq-q'){eqQ=e.target.value;applyEqFilter();}});
 app.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.id==='rz-pw'){var bt=document.querySelector('[data-act="clear-yes"]');if(bt)bt.click();}});
 app.addEventListener('click',function(e){
@@ -675,9 +699,10 @@ render();
 if(OFFLINE&&GH.token&&GH.dirty)setTimeout(publishNow,1500);
 if(OFFLINE&&FB.refresh)setTimeout(fbPublish,800);
 if(OFFLINE)setTimeout(ghEnsureViewer,2500);
+if(OFFLINE||VIEWER){setTimeout(pullSheet,1200);setInterval(function(){if(!document.hidden)pullSheet();},120000);document.addEventListener('visibilitychange',function(){if(!document.hidden)pullSheet();});}
 if(VIEWER){
   var newer=function(o){return o&&(!saved.updated||(o.updated||'')>=saved.updated);};
-  var apply=function(o){if(!newer(o))return;VS.fail=false;if(JSON.stringify(o)!==JSON.stringify(saved)){saved=o;draft=clone(o);render();}else renderStatus();};
+  var apply=function(o){if(!newer(o))return;if(CSV_EQ)o.equipes=clone(CSV_EQ);VS.fail=false;if(JSON.stringify(o)!==JSON.stringify(saved)){saved=o;draft=clone(o);render();}else renderStatus();};
   var fromFb=function(v){if(!v||typeof v.payload!=='string')return null;try{return norm(JSON.parse(v.payload));}catch(e){return null;}};
   var fbObj={},es=null,esOk=false;
   var openStream=function(){
