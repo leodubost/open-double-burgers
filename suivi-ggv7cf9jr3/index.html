@@ -162,6 +162,14 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 .lvstat[aria-pressed="true"]{background:var(--lv,var(--ink));border-color:var(--lv,var(--ink))}
 .lvstat[aria-pressed="true"] .n,.lvstat[aria-pressed="true"] .t{color:var(--bg)}
 .eq-q{max-width:420px;height:44px!important;font-weight:600}
+.bk-search{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.bk-search .eq-q{flex:1 1 260px}
+.bk-cnt{font-size:13px;font-weight:800;color:var(--muted)}
+.m.hit{border-color:var(--ink);box-shadow:0 0 0 3px var(--mustard)}
+.m.dim,.rkrow.dim{opacity:.28}
+.tr.sh{background:var(--mustard);border-radius:6px}
+.tr.sh .tn{font-weight:800}
+.rkrow.hit{background:var(--mustard);border-radius:8px}
 .lvsec{display:flex;flex-direction:column;gap:12px}
 .lvh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-bottom:2px solid var(--lv);padding-bottom:6px}
 .lvh h2{font-family:var(--display);font-weight:400;font-size:26px;color:var(--lv)}
@@ -227,7 +235,7 @@ var draft=clone(saved);
 var canEdit=OFFLINE, editMode=true, art=null, saving=false, confirmClear=false;
 var anyPool=POULES.some(function(p){return saved.teams[p].some(function(n){return n.trim();});});
 var tab=(location.hash||'').replace('#','')||ss('odb-tab')||(VIEWER?(anyPool?'haut':'equipes'):'poules');
-var lvF=null,eqQ='';
+var lvF=null,eqQ='',bkQ='';
 if(!TABS.some(function(t){return t[0]===tab;})&&!(OFFLINE&&tab==='reglages'))tab='poules';
 
 var restored=false;
@@ -528,6 +536,24 @@ function viewReglages(){
   return h+'</div>';
 }
 var COLN=['Finale','Demi-finales','Quarts de finale','8es de finale'];
+function searchBar(){return '<div class="bk-search"><input type="search" id="bk-q" class="eq-q" placeholder="Chercher une équipe…" value="'+esc(bkQ)+'" autocomplete="off" autocapitalize="off" aria-label="Chercher une équipe"><span class="bk-cnt" id="bk-cnt"></span></div>';}
+function applyBkFilter(jump){
+  var q=fold(bkQ),els=document.querySelectorAll('.m,.rkrow'),n=0,first=null,cnt=document.getElementById('bk-cnt');
+  for(var i=0;i<els.length;i++){
+    var el=els[i],isM=el.classList.contains('m'),hit=false;
+    if(isM){
+      var trs=el.querySelectorAll('.tr');
+      for(var j=0;j<trs.length;j++){var tn=trs[j].querySelector('.tn'),ok=!!(q&&tn&&fold(tn.textContent).indexOf(q)>=0);trs[j].classList.toggle('sh',ok);if(ok)hit=true;}
+    }else{
+      var inp=el.querySelector('input.rk-in'),nm=el.querySelector('.nm'),txt=inp?inp.value:(nm?nm.textContent:'');
+      hit=!!(q&&fold(txt).indexOf(q)>=0);
+    }
+    el.classList.toggle('hit',hit);el.classList.toggle('dim',!!q&&!hit);
+    if(hit){n++;if(!first)first=el;}
+  }
+  if(cnt)cnt.textContent=q?(n?n+' résultat'+(n>1?'s':''):'Aucune équipe trouvée'):'';
+  if(jump&&first){try{first.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});}catch(e){first.scrollIntoView();}}
+}
 function bkSlot(sec,m){return '<div class="bk-slot">'+match(sec,m.id,m.label,m.a,m.b,m.s,m.ready)+'</div>';}
 function viewBracket(sec,br){
   var base=sec==='haut'?0:16,map={};
@@ -601,13 +627,14 @@ function render(){
   TABS.forEach(function(t){h+='<button class="tab" data-act="tab" data-tab="'+t[0]+'" aria-pressed="'+(tab===t[0])+'">'+t[1]+'</button>';});
   if(OFFLINE)h+='<button class="tab tab-gear" data-act="tab" data-tab="reglages" aria-pressed="'+(tab==='reglages')+'" aria-label="Réglages" title="Réglages"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>';
   h+='</div></div></nav><main class="wrap">';
-  if(tab==='equipes')h+=viewEquipes();else if(tab==='poules')h+=viewPoules();else if(tab==='haut')h+=viewBracket('haut',c.haut);else if(tab==='bas')h+=viewBracket('bas',c.bas);else if(tab==='reglages'&&OFFLINE)h+=viewReglages();else h+=viewClassement(c);
+  if(tab==='equipes')h+=viewEquipes();else if(tab==='poules')h+=searchBar()+viewPoules();else if(tab==='haut')h+=searchBar()+viewBracket('haut',c.haut);else if(tab==='bas')h+=searchBar()+viewBracket('bas',c.bas);else if(tab==='reglages'&&OFFLINE)h+=viewReglages();else h+=viewClassement(c);
   h+='</main>';
   var n=(!OFFLINE&&canEdit)?diffCount():0;
   if(n>0)h+='<div class="savebar"><div class="in"><span><strong>'+n+' modification'+(n>1?'s':'')+'</strong> non enregistrée'+(n>1?'s':'')+'</span><span class="btnrow"><button class="btn" data-act="cancel"'+(saving?' disabled':'')+'>Annuler</button><button class="btn pri" data-act="save"'+(saving?' disabled':'')+'>'+(saving?'Enregistrement…':'Enregistrer')+'</button></span></div></div>';
   document.getElementById('app').innerHTML=h;
   if(tab==='equipes')applyEqFilter();
-  if(fid){var el=document.getElementById(fid);if(el){el.focus();if(fid!=='eq-q'){try{el.select();}catch(e){}}}}
+  if(tab==='poules'||tab==='haut'||tab==='bas')applyBkFilter(false);
+  if(fid){var el=document.getElementById(fid);if(el){el.focus();if(fid!=='eq-q'&&fid!=='bk-q'){try{el.select();}catch(e){}}}}
   renderStatus();
 }
 var tq=null;
@@ -659,7 +686,7 @@ app.addEventListener('change',function(e){
   }
 });
 app.addEventListener('focusout',function(){if(sheetPending){sheetPending=false;setTimeout(render,0);}});
-app.addEventListener('input',function(e){if(e.target&&e.target.id==='eq-q'){eqQ=e.target.value;applyEqFilter();}});
+app.addEventListener('input',function(e){if(e.target&&e.target.id==='eq-q'){eqQ=e.target.value;applyEqFilter();}else if(e.target&&e.target.id==='bk-q'){bkQ=e.target.value;applyBkFilter(true);}else if(e.target&&e.target.classList&&e.target.classList.contains('rk-in')&&bkQ){applyBkFilter(false);}});
 app.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.id==='rz-pw'){var bt=document.querySelector('[data-act="clear-yes"]');if(bt)bt.click();}});
 app.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;var a=b.dataset.act;
