@@ -460,7 +460,7 @@ function fbPublish(){
   FB.busy=true;FB.dirty=false;FB.state='sending';renderStatus();
   var body=JSON.stringify({payload:JSON.stringify(draft),updated:draft.updated||new Date().toISOString()});
   fbToken().then(function(t){
-    return fetch(FB_DB+'/nuit-bad-western.json?auth='+encodeURIComponent(t),{method:'PUT',body:body}).then(function(r){if(!r.ok){var e=new Error('http '+r.status);e.status=r.status;if(r.status===401){FB.idToken=null;}throw e;}});
+    return fetch(FB_DB+'/tournoi.json?auth='+encodeURIComponent(t),{method:'PUT',body:body}).then(function(r){if(!r.ok){var e=new Error('http '+r.status);e.status=r.status;if(r.status===401){FB.idToken=null;}throw e;}});
   }).then(function(){FB.last=new Date().toISOString();FB.state='ok';FB.err='';},function(e){
     FB.dirty=true;FB.state='err';FB.err=fbErr(e);
     if(/internet/.test(FB.err))FB.timer=setTimeout(fbPublish,5000);
@@ -859,7 +859,7 @@ if(VIEWER){
   var fbObj={},es=null,esOk=false;
   var openStream=function(){
     if(es||typeof EventSource==='undefined')return;
-    try{es=new EventSource(FB_DB+'/nuit-bad-western.json');}catch(e){es=null;return;}
+    try{es=new EventSource(FB_DB+'/tournoi.json');}catch(e){es=null;return;}
     var onData=function(ev){try{var m=JSON.parse(ev.data);esOk=true;
       if(m.path==='/'){if(ev.type==='patch')Object.assign(fbObj,m.data||{});else fbObj=m.data||{};}else{fbObj[m.path.replace(/^\//,'')]=m.data;}
       var o=fromFb(fbObj);if(o)apply(o);}catch(e){}};
@@ -868,7 +868,7 @@ if(VIEWER){
     es.onerror=function(){esOk=false;};
   };
   var closeStream=function(){if(es){try{es.close();}catch(e){}es=null;esOk=false;}};
-  var pullFb=function(){return fetch(FB_DB+'/nuit-bad-western.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(v){var o=fromFb(v);if(o)apply(o);else throw 0;});};
+  var pullFb=function(){return fetch(FB_DB+'/tournoi.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(v){var o=fromFb(v);if(o)apply(o);else throw 0;});};
   var pullGh=function(){return fetch('data.json?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){var o=norm(j);if(o)apply(o);});};
   var safety=function(){if(document.hidden)return;if(esOk)return;pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});};
   pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});
