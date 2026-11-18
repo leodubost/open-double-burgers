@@ -870,10 +870,10 @@ if(VIEWER){
   var closeStream=function(){if(es){try{es.close();}catch(e){}es=null;esOk=false;}};
   var pullFb=function(){return fetch(FB_DB+'/tournoi.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(v){var o=fromFb(v);if(o)apply(o);else throw 0;});};
   var pullGh=function(){return fetch('data.json?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){var o=norm(j);if(o)apply(o);});};
-  var safety=function(){if(document.hidden)return;if(esOk)return;pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});};
+  var safety=function(f){if(document.hidden)return;if(esOk&&!f)return;pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});};
   pullFb().catch(function(){return pullGh();}).catch(function(){VS.fail=true;renderStatus();});
-  openStream();setInterval(safety,10000);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)closeStream();else{openStream();safety();}});
+  openStream();setInterval(safety,10000);var VSTAMP='w3';try{fetch(location.href.split('#')[0].split('?')[0]+'?v='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){var q=String.fromCharCode(39);if(t&&t.indexOf('VSTAMP='+q+VSTAMP+q)<0&&!ss('nbw-rl')){ss('nbw-rl','1');location.replace(location.href.split('#')[0].split('?')[0]+'?v='+Date.now());}}).catch(function(){});}catch(e){}
+  document.addEventListener('visibilitychange',function(){if(document.hidden)closeStream();else{openStream();safety(1);}});window.addEventListener('pageshow',function(){openStream();safety(1);});window.addEventListener('focus',function(){openStream();safety(1);});
 }
 var sy=ss('nbw-scroll');if(sy){ss('nbw-scroll',null);setTimeout(function(){window.scrollTo(0,+sy||0);},50);}
 if(!OFFLINE&&!VIEWER&&window.claude&&typeof window.claude.use==='function'){
